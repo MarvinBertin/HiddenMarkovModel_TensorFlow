@@ -1,5 +1,8 @@
 # Hidden Markov Model in TensorFlow
 
+##Jupyter Notebook:
+[Check out the Notebook for Examples.](http://nbviewer.jupyter.org/github/MarvinBertin/HiddenMarkovModel_TensorFlow/blob/master/HiddenMarkovModel.ipynb)
+
 ## Viterbi Algorithm
 * Efficient way of finding the most likely state sequence.
 * Method is general statistical framework of compound decision theory. 
