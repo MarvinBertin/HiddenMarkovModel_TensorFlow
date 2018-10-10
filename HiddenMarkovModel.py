@@ -80,7 +80,7 @@ class HiddenMarkovModel(object):
         with tf.name_scope('Emission_seq_'):
             # log probability of emission sequence
             obs_prob_seq = tf.log(tf.gather(self.E, x))
-            obs_prob_list = tf.split(0, self.N, obs_prob_seq)
+            obs_prob_list = tf.split(obs_prob_seq, self.N, 0)
 
         with tf.name_scope('Starting_log-priors'):
             # initialize with state starting log-priors
@@ -108,7 +108,7 @@ class HiddenMarkovModel(object):
                 with tf.name_scope('Back_track_step_%s' %step):
                     # for every timestep retrieve inferred state
                     state = states_seq[step]
-                    idx = tf.reshape(tf.pack([step, state]), [1, -1])
+                    idx = tf.reshape(tf.stack([step, state]), [1, -1])
                     state_prob = tf.gather_nd(pathStates, idx)
                     states_seq = tf.scatter_update(states_seq, step - 1,  state_prob[0])
 
@@ -125,7 +125,7 @@ class HiddenMarkovModel(object):
             
             if summary:
                 # Instantiate a SummaryWriter to output summaries and the Graph.
-                summary_writer = tf.train.SummaryWriter('logs/', graph=sess.graph)
+                summary_writer = tf.summary.FileWriter('logs/', graph=sess.graph)
 
         return states_seq, state_prob
     
@@ -142,7 +142,7 @@ class HiddenMarkovModel(object):
         
         with tf.name_scope('forward_first_step'):
             # initialize with state starting priors
-            init_prob = tf.mul(self.T0, tf.squeeze(obs_prob_list[0]))
+            init_prob = tf.multiply(self.T0, tf.squeeze(obs_prob_list[0]))
 
             # scaling factor at t=0
             self.scale = tf.scatter_update(self.scale, 0, 1.0 / tf.reduce_sum(init_prob))
@@ -158,7 +158,7 @@ class HiddenMarkovModel(object):
                 # transition prior
                 prior_prob = tf.matmul(prev_prob, self.T)
                 # forward belief propagation
-                forward_score = tf.mul(prior_prob, tf.squeeze(obs_prob))
+                forward_score = tf.multiply(prior_prob, tf.squeeze(obs_prob))
 
                 forward_prob = tf.squeeze(forward_score)
                 # scaling factor
@@ -194,7 +194,7 @@ class HiddenMarkovModel(object):
         
     def _posterior(self):
         # posterior score
-        self.posterior = tf.mul(self.forward, self.backward)
+        self.posterior = tf.multiply(self.forward, self.backward)
 
         marginal = tf.reduce_sum(self.posterior, 1)
         self.posterior = self.posterior / tf.expand_dims(marginal, 1)       
@@ -216,7 +216,7 @@ class HiddenMarkovModel(object):
             for t in range(self.N - 1):
                 with tf.name_scope('time_step-%s' %t):
                     tmp_0 = tf.matmul(tf.expand_dims(self.forward[t, :], 0), self.T)
-                    tmp_1 = tf.mul(tmp_0, tf.expand_dims(tf.gather(self.E, x[t+1]), 0))
+                    tmp_1 = tf.multiply(tmp_0, tf.expand_dims(tf.gather(self.E, x[t+1]), 0))
                     denom = tf.squeeze(tf.matmul(tmp_1, tf.expand_dims(self.backward[t+1, :], 1)))
 
                 with tf.name_scope('Init_new_transition'):
@@ -237,9 +237,9 @@ class HiddenMarkovModel(object):
             T0_new = self.gamma[0,:]
 
         with tf.name_scope('Append_gamma_final_time_step'):
-            prod = tf.expand_dims(tf.mul(self.forward[self.N-1, :], self.backward[self.N-1, :]), 0)
+            prod = tf.expand_dims(tf.multiply(self.forward[self.N-1, :], self.backward[self.N-1, :]), 0)
             s= prod/ tf.reduce_sum(prod)
-            self.gamma = tf.concat(0, [self.gamma, s])
+            self.gamma = tf.concat([self.gamma, s], 0)
             
             self.prob_state_1.append(self.gamma[:, 0])
         
@@ -271,14 +271,14 @@ class HiddenMarkovModel(object):
         - posterior : matrix of size N by S representing
             the posterior probability of each state at each time step
         """
-        obs_prob_list_for = tf.split(0, self.N, obs_prob_seq)
+        obs_prob_list_for = tf.split(obs_prob_seq, self.N, 0)
         
         with tf.name_scope('forward_belief_propagation'):
             # forward belief propagation
             self._forward(obs_prob_list_for)
 
         obs_prob_seq_rev = tf.reverse(obs_prob_seq, [True, False])
-        obs_prob_list_back = tf.split(0, self.N, obs_prob_seq_rev)
+        obs_prob_list_back = tf.split(obs_prob_seq_rev, self.N, 0)
 
         with tf.name_scope('backward_belief_propagation'):
             # backward belief propagation
@@ -308,9 +308,9 @@ class HiddenMarkovModel(object):
             #self.count = tf.assign_add(self.count, 1)
              
             with tf.name_scope('histogram_summary'):
-                _ = tf.histogram_summary(self.T0.name, self.T0)
-                _ = tf.histogram_summary(self.T.name, self.T)
-                _ = tf.histogram_summary(self.E.name, self.E)
+                _ = tf.summary.histogram(self.T0.name, self.T0)
+                _ = tf.summary.histogram(self.T.name, self.T)
+                _ = tf.summary.histogram(self.E.name, self.E)
         return converged
         
     
@@ -358,11 +358,10 @@ class HiddenMarkovModel(object):
         converged = self.Baum_Welch_EM(obs_seq)
         
         # Build the summary operation based on the TF collection of Summaries.
-        summary_op = tf.merge_all_summaries()
+        summary_op = tf.summary.merge_all()
         
         with tf.Session() as sess:
-            
-            sess.run(tf.initialize_all_variables())
+            sess.run(tf.global_variables_initializer())
             trans0, transition, emission, c = sess.run([self.T0, self.T, self.E, converged])
             
             if monitor_state_1:

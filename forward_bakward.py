@@ -118,7 +118,7 @@ class HiddenMarkovModel_FB(object):
             # transition prior
             prior_prob = tf.matmul(prev_prob, self.T)
             # forward belief propagation
-            forward_score = tf.mul(prior_prob, tf.cast(obs_prob_seq[step, :], tf.float64))
+            forward_score = tf.multiply(prior_prob, tf.cast(obs_prob_seq[step, :], tf.float64))
             # Normalize score into a probability
             forward_prob = tf.reshape(forward_score / tf.reduce_sum(forward_score), [-1])
             # Update forward matrix
@@ -193,7 +193,7 @@ class HiddenMarkovModel_FB(object):
         self._backward(obs_prob_seq)
 
         # posterior score
-        self.posterior = tf.mul(self.forward, self.backward)
+        self.posterior = tf.multiply(self.forward, self.backward)
         
         # marginal per timestep
         marginal = tf.reduce_sum(self.posterior, 1)
