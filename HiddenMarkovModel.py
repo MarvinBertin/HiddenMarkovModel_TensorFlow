@@ -189,7 +189,7 @@ class HiddenMarkovModel(object):
                 # Update backward matrix
                 self.backward = tf.scatter_update(self.backward, step+1, self.scale[self.N-2-step] * backward_prob)
         
-        self.backward = tf.assign(self.backward, tf.reverse(self.backward, [True, False]))
+        self.backward = tf.assign(self.backward, tf.reverse(self.backward, [0]))
 
         
     def _posterior(self):
@@ -277,7 +277,7 @@ class HiddenMarkovModel(object):
             # forward belief propagation
             self._forward(obs_prob_list_for)
 
-        obs_prob_seq_rev = tf.reverse(obs_prob_seq, [True, False])
+        obs_prob_seq_rev = tf.reverse(obs_prob_seq, [0])
         obs_prob_list_back = tf.split(obs_prob_seq_rev, self.N, 0)
 
         with tf.name_scope('backward_belief_propagation'):
